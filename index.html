@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="theme-color" content="#0a0a0f" />
+  <title>AR Experience – Nestlé</title>
+  <meta name="description" content="View the Nestlé 3D model in augmented reality on your phone. Point your camera and place it in your world." />
+  <link rel="stylesheet" href="style.css" />
+
+  <!-- model-viewer – Google's official AR web component -->
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@google/model-viewer@3.5.0/dist/model-viewer.min.js"></script>
+
+  <style>
+    /* ── Layout ── */
+    #app {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      min-height: 100dvh;
+      z-index: 1;
+    }
+
+    /* ── Header ── */
+    header {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 20px;
+      padding-top: max(14px, env(safe-area-inset-top));
+      background: rgba(10,10,15,0.75);
+      -webkit-backdrop-filter: blur(20px);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--glass-border);
+    }
+    .logo-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .logo-icon {
+      width: 36px; height: 36px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 10px;
+      display: grid;
+      place-items: center;
+      font-size: 18px;
+    }
+    .logo-text {
+      font-size: 1rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      background: linear-gradient(90deg, #fff 30%, var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .badge-ar {
+      padding: 5px 14px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--accent);
+      border: 1.5px solid var(--accent);
+      border-radius: 50px;
+      background: rgba(212,0,42,0.08);
+    }
+
+    /* ── model-viewer ── */
+    model-viewer {
+      width: 100%;
+      flex: 1;
+      min-height: calc(100vh - 130px);
+      min-height: calc(100dvh - 130px);
+      --progress-bar-color: var(--accent);
+      --progress-bar-height: 3px;
+      background: transparent;
+    }
+
+    /* Custom loading poster */
+    .loading-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      background: var(--bg);
+      z-index: 10;
+      transition: opacity 0.6s ease, visibility 0.6s ease;
+    }
+    .loading-overlay.hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+    .loader-ring {
+      position: relative;
+      width: 80px; height: 80px;
+    }
+    .loader-ring::before,
+    .loader-ring::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      border: 3px solid transparent;
+    }
+    .loader-ring::before {
+      border-top-color: var(--accent);
+      animation: spin 1s linear infinite;
+    }
+    .loader-ring::after {
+      border-bottom-color: var(--accent2);
+      animation: spin 1.5s linear infinite reverse;
+    }
+    .loader-icon {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      font-size: 28px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-text {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      letter-spacing: 0.05em;
+    }
+    .loading-sub {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      opacity: 0.6;
+    }
+
+    /* ── Bottom controls ── */
+    footer {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      padding: 16px 24px;
+      padding-bottom: max(16px, env(safe-area-inset-bottom));
+      background: rgba(10,10,15,0.8);
+      -webkit-backdrop-filter: blur(24px);
+      backdrop-filter: blur(24px);
+      border-top: 1px solid var(--glass-border);
+    }
+
+    #ar-btn {
+      width: 100%;
+      max-width: 360px;
+      font-size: 1.1rem;
+      padding: 18px 36px;
+      position: relative;
+      overflow: hidden;
+    }
+    /* Pulse rings behind AR button */
+    #ar-btn::before {
+      content: '';
+      position: absolute;
+      inset: -2px;
+      border-radius: 50px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      opacity: 0;
+      z-index: -1;
+      animation: btn-pulse 2.5s ease-in-out infinite;
+    }
+    @keyframes btn-pulse {
+      0%, 100% { opacity: 0; transform: scale(1); }
+      50%       { opacity: 0.25; transform: scale(1.06); }
+    }
+
+    .hint-text {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      text-align: center;
+      line-height: 1.4;
+    }
+
+    .tips-row {
+      display: flex;
+      gap: 8px;
+    }
+    .tip-chip {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 5px 12px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      background: var(--glass);
+      border: 1px solid var(--glass-border);
+      border-radius: 50px;
+    }
+
+    /* Fallback – shown on desktop or non-AR browsers */
+    #no-ar-notice {
+      display: none;
+      text-align: center;
+      padding: 8px 20px;
+      font-size: 0.78rem;
+      color: var(--accent);
+      background: rgba(212,0,42,0.1);
+      border: 1px solid rgba(212,0,42,0.25);
+      border-radius: 12px;
+      max-width: 360px;
+    }
+
+    /* model-viewer slot hotspot */
+    .annotation {
+      background: var(--glass);
+      border: 1px solid var(--glass-border);
+      border-radius: 12px;
+      padding: 8px 14px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text);
+      -webkit-backdrop-filter: blur(10px);
+      backdrop-filter: blur(10px);
+      white-space: nowrap;
+    }
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <!-- Header -->
+  <header>
+    <div class="logo-wrap">
+      <div class="logo-icon">🍫</div>
+      <span class="logo-text">Nestlé AR</span>
+    </div>
+    <div class="badge-ar">AR Ready</div>
+  </header>
+
+  <!-- model-viewer wrapper -->
+  <div style="position:relative; flex:1; display:flex; flex-direction:column; padding-top:64px; padding-bottom:140px;">
+
+    <!-- Loading overlay -->
+    <div class="loading-overlay" id="loading-overlay">
+      <div class="loader-ring">
+        <div class="loader-icon">📦</div>
+      </div>
+      <div class="loading-text">Loading 3D Model…</div>
+      <div class="loading-sub">Please wait a moment</div>
+    </div>
+
+    <model-viewer
+      id="mv"
+      src="https://pub-8ad80db361084d56bc482412516479ec.r2.dev/SC-compressed.glb"
+      alt="Nestlé 3D Product Model"
+      ar
+      ar-modes="webxr scene-viewer quick-look"
+      ar-scale="auto"
+      camera-controls
+      auto-rotate
+      auto-rotate-delay="500"
+      rotation-per-second="30deg"
+      autoplay
+      shadow-intensity="1.2"
+      shadow-softness="0.8"
+      environment-image="neutral"
+      exposure="1"
+      tone-mapping="commerce"
+      touch-action="pan-y"
+      style="animation: fadeInUp 0.6s ease both;"
+    >
+      <!-- Custom AR button slot (used on Android; iOS uses native Quick Look button) -->
+      <button id="ar-btn" class="btn-ar" slot="ar-button">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+        View in AR
+      </button>
+    </model-viewer>
+  </div>
+
+  <!-- Footer -->
+  <footer>
+    <div id="no-ar-notice">
+      📱 Open this page on your phone to use AR
+    </div>
+
+    <button class="btn-ar" id="main-ar-btn" style="width:100%;max-width:360px;font-size:1.05rem;">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+      ✨ View in Your Space
+    </button>
+
+    <div class="tips-row">
+      <div class="tip-chip">📱 Works on iPhone</div>
+      <div class="tip-chip">🤖 Works on Android</div>
+    </div>
+
+    <div class="hint-text">
+      Tap the button above → point your camera at a flat surface → place the model!
+    </div>
+  </footer>
+
+</div>
+
+<script>
+  const mv = document.getElementById('mv');
+  const loadingOverlay = document.getElementById('loading-overlay');
+  const mainArBtn = document.getElementById('main-ar-btn');
+  const noArNotice = document.getElementById('no-ar-notice');
+
+  // Hide loading overlay once model is ready
+  mv.addEventListener('load', () => {
+    loadingOverlay.classList.add('hidden');
+  });
+
+  // Also hide on progress complete
+  mv.addEventListener('progress', (e) => {
+    if (e.detail.totalProgress === 1) {
+      setTimeout(() => loadingOverlay.classList.add('hidden'), 300);
+    }
+  });
+
+  // Main AR button – activate AR session
+  mainArBtn.addEventListener('click', () => {
+    mv.activateAR();
+  });
+
+  // Detect if AR is supported; show notice on desktop
+  mv.addEventListener('ar-status', (e) => {
+    if (e.detail.status === 'failed') {
+      noArNotice.style.display = 'block';
+      mainArBtn.style.display = 'none';
+    }
+  });
+
+  // On desktop / non-mobile, always show the notice
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  if (!isMobile) {
+    noArNotice.style.display = 'block';
+    mainArBtn.textContent = '🔄 Rotate & Explore 3D';
+    mainArBtn.onclick = () => {
+      mv.cameraOrbit = 'auto auto auto';
+    };
+  }
+</script>
+</body>
+</html>

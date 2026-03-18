@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0a0a0f" />
+  <title>Scan to View in AR – Nestlé</title>
+  <meta name="description" content="Scan this QR code with your phone to see the Nestlé 3D model in augmented reality." />
+  <link rel="stylesheet" href="style.css" />
+
+  <!-- QR Code generator (pure JS, no server needed) -->
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
+
+  <style>
+    #app {
+      position: relative;
+      z-index: 1;
+      min-height: 100vh;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      gap: 0;
+    }
+
+    /* ── Hero Section ── */
+    .hero {
+      text-align: center;
+      margin-bottom: 32px;
+      animation: fadeInUp 0.6s ease both;
+    }
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 16px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--accent);
+      background: rgba(212,0,42,0.1);
+      border: 1px solid rgba(212,0,42,0.3);
+      border-radius: 50px;
+      margin-bottom: 18px;
+    }
+    .hero h1 {
+      font-size: clamp(1.8rem, 6vw, 2.8rem);
+      font-weight: 800;
+      line-height: 1.15;
+      letter-spacing: -0.02em;
+      background: linear-gradient(135deg, #fff 30%, var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 10px;
+    }
+    .hero p {
+      font-size: 1rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+      max-width: 400px;
+      margin: 0 auto;
+    }
+
+    /* ── QR Card ── */
+    .qr-card {
+      animation: fadeInUp 0.7s 0.1s ease both;
+      padding: 28px;
+      border-radius: 28px;
+      text-align: center;
+      margin-bottom: 28px;
+      max-width: 380px;
+      width: 100%;
+    }
+    .qr-wrap {
+      position: relative;
+      width: 220px;
+      height: 220px;
+      margin: 0 auto 18px;
+    }
+    /* Animated corner borders on QR */
+    .qr-wrap::before,
+    .qr-wrap::after {
+      content: '';
+      position: absolute;
+      width: 30px; height: 30px;
+      border-color: var(--accent);
+      border-style: solid;
+      z-index: 2;
+    }
+    .qr-wrap::before {
+      top: -4px; left: -4px;
+      border-width: 3px 0 0 3px;
+      border-radius: 6px 0 0 0;
+    }
+    .qr-wrap::after {
+      bottom: -4px; right: -4px;
+      border-width: 0 3px 3px 0;
+      border-radius: 0 0 6px 0;
+    }
+    .qr-inner {
+      position: relative;
+      width: 100%; height: 100%;
+    }
+    /* Extra corners */
+    .qr-corner-tr, .qr-corner-bl {
+      position: absolute;
+      width: 30px; height: 30px;
+      border-color: var(--accent);
+      border-style: solid;
+      z-index: 2;
+    }
+    .qr-corner-tr {
+      top: -4px; right: -4px;
+      border-width: 3px 3px 0 0;
+      border-radius: 0 6px 0 0;
+    }
+    .qr-corner-bl {
+      bottom: -4px; left: -4px;
+      border-width: 0 0 3px 3px;
+      border-radius: 0 0 0 6px;
+    }
+    #qr-canvas {
+      display: block;
+      border-radius: 16px;
+      width: 220px !important;
+      height: 220px !important;
+    }
+
+    .qr-label {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      font-weight: 600;
+      letter-spacing: 0.05em;
+    }
+    .qr-url-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 10px;
+      padding: 6px 16px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      background: var(--glass);
+      border: 1px solid var(--glass-border);
+      border-radius: 50px;
+      word-break: break-all;
+    }
+
+    /* ── Steps ── */
+    .steps-card {
+      animation: fadeInUp 0.7s 0.2s ease both;
+      padding: 20px 24px;
+      border-radius: 20px;
+      max-width: 380px;
+      width: 100%;
+      margin-bottom: 24px;
+    }
+    .steps-title {
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 14px;
+    }
+    .step-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .step-row:last-child { margin-bottom: 0; }
+    .step-num {
+      flex-shrink: 0;
+      width: 28px; height: 28px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      font-size: 0.75rem;
+      font-weight: 800;
+      color: #fff;
+    }
+    .step-text {
+      padding-top: 2px;
+    }
+    .step-text strong {
+      display: block;
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 1px;
+    }
+    .step-text span {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    /* ── Platform badges ── */
+    .platform-row {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      animation: fadeInUp 0.7s 0.3s ease both;
+      margin-bottom: 24px;
+    }
+    .platform-chip {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 18px;
+      background: var(--glass);
+      border: 1px solid var(--glass-border);
+      border-radius: 14px;
+      -webkit-backdrop-filter: blur(10px);
+      backdrop-filter: blur(10px);
+    }
+    .platform-chip .plat-icon { font-size: 1.3rem; }
+    .platform-chip .plat-label {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      line-height: 1.3;
+    }
+    .platform-chip .plat-label small {
+      display: block;
+      color: rgba(240,240,245,0.35);
+      font-weight: 400;
+    }
+
+    /* ── Actions ── */
+    .actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: center;
+      animation: fadeInUp 0.7s 0.35s ease both;
+    }
+
+    /* ── URL input (for editing live URL) ── */
+    .url-editor {
+      animation: fadeInUp 0.7s 0.4s ease both;
+      margin-top: 20px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      max-width: 380px;
+      width: 100%;
+    }
+    .url-editor input {
+      flex: 1;
+      padding: 10px 16px;
+      border-radius: 50px;
+      border: 1px solid var(--glass-border);
+      background: var(--glass);
+      color: var(--text);
+      font-family: 'Outfit', sans-serif;
+      font-size: 0.8rem;
+      outline: none;
+      -webkit-backdrop-filter: blur(10px);
+      backdrop-filter: blur(10px);
+    }
+    .url-editor input:focus {
+      border-color: var(--accent);
+    }
+    .url-editor button {
+      padding: 10px 18px;
+      border-radius: 50px;
+      border: none;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #fff;
+      font-family: 'Outfit', sans-serif;
+      font-size: 0.8rem;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .footer-note {
+      margin-top: 24px;
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      text-align: center;
+      opacity: 0.5;
+      animation: fadeInUp 0.7s 0.45s ease both;
+    }
+
+    @media print {
+      body::before { display: none; }
+      .url-editor, .actions, .footer-note { display: none; }
+      .qr-card { box-shadow: none; border: 2px solid #ddd; }
+    }
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <!-- Hero -->
+  <div class="hero">
+    <div class="hero-badge">🌟 Augmented Reality Experience</div>
+    <h1>See It In Your World</h1>
+    <p>Scan the QR code with your phone camera to instantly view the 3D model in AR — no app needed.</p>
+  </div>
+
+  <!-- QR Card -->
+  <div class="qr-card glass-card">
+    <div class="qr-wrap">
+      <div class="qr-inner">
+        <div class="qr-corner-tr"></div>
+        <div class="qr-corner-bl"></div>
+        <canvas id="qr-canvas"></canvas>
+      </div>
+    </div>
+    <div class="qr-label">Point your camera here</div>
+    <div class="qr-url-chip">
+      <span>🔗</span>
+      <span id="qr-url-display">–</span>
+    </div>
+  </div>
+
+  <!-- How to steps -->
+  <div class="steps-card glass-card">
+    <div class="steps-title">📋 How to use</div>
+    <div class="step-row">
+      <div class="step-num">1</div>
+      <div class="step-text">
+        <strong>Open your Camera</strong>
+        <span>Use the built-in Camera app or QR scanner</span>
+      </div>
+    </div>
+    <div class="step-row">
+      <div class="step-num">2</div>
+      <div class="step-text">
+        <strong>Point at the QR code</strong>
+        <span>Hold steady until a notification appears</span>
+      </div>
+    </div>
+    <div class="step-row">
+      <div class="step-num">3</div>
+      <div class="step-text">
+        <strong>Tap "View in AR"</strong>
+        <span>Point your phone at a flat surface, then place!</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Platform support -->
+  <div class="platform-row">
+    <div class="platform-chip">
+      <div class="plat-icon">🍎</div>
+      <div class="plat-label">iPhone & iPad<small>Safari • Quick Look</small></div>
+    </div>
+    <div class="platform-chip">
+      <div class="plat-icon">🤖</div>
+      <div class="plat-label">Android<small>Chrome • Scene Viewer</small></div>
+    </div>
+  </div>
+
+  <!-- Action buttons -->
+  <div class="actions">
+    <button class="btn-ar" onclick="window.print()">
+      🖨️ Print QR Code
+    </button>
+    <a class="btn-secondary" id="open-ar-link" href="index.html">
+      📱 Open AR Viewer
+    </a>
+  </div>
+
+  <!-- URL editor (for after deployment) -->
+  <div class="url-editor">
+    <input type="text" id="url-input" placeholder="Enter your hosted URL (e.g. https://yoursite.com)" />
+    <button onclick="updateQR()">Update</button>
+  </div>
+
+  <div class="footer-note">
+    💡 After deploying to a host (e.g. Cloudflare Pages), paste your HTTPS URL above and regenerate the QR.
+  </div>
+
+</div>
+
+<script>
+  // Build the AR viewer index.html URL from current location
+  function buildARUrl(base) {
+    if (!base) {
+      // Auto-detect
+      const loc = window.location;
+      if (loc.protocol === 'file:') {
+        return 'https://your-site.com/index.html';
+      }
+      const path = loc.pathname.replace(/qr\.html$/, '');
+      return loc.origin + path + 'index.html';
+    }
+    // Normalise user-entered base URL
+    const trimmed = base.replace(/\/+$/, ''); // strip trailing slashes
+    if (trimmed.endsWith('index.html')) return trimmed;
+    return trimmed + '/index.html';
+  }
+
+  function generateQR(url) {
+    if (!url) return;
+    const canvas = document.getElementById('qr-canvas');
+    document.getElementById('qr-url-display').textContent = url;
+    document.getElementById('open-ar-link').href = url;
+
+    QRCode.toCanvas(canvas, url, {
+      width: 220,
+      margin: 2,
+      color: {
+        dark: '#000000',   // Black modules – maximum scannability
+        light: '#ffffff'
+      },
+      errorCorrectionLevel: 'H'
+    }, function (err) {
+      if (err) console.error('QR generation error:', err);
+    });
+  }
+
+  function updateQR() {
+    const val = (document.getElementById('url-input').value || '').trim();
+    if (!val) return;
+    const url = buildARUrl(val);
+    localStorage.setItem('nestle-ar-custom-url', url);
+    generateQR(url);
+  }
+
+  // Init on page load
+  (function init() {
+    const stored = localStorage.getItem('nestle-ar-custom-url');
+    const arUrl = stored || buildARUrl(null);
+    // Pre-fill input with the base (without /index.html)
+    const inputVal = arUrl.replace(/\/index\.html$/, '');
+    document.getElementById('url-input').value = inputVal;
+    generateQR(arUrl);
+  })();
+</script>
+</body>
+</html>
