@@ -251,13 +251,26 @@
   <!-- model-viewer wrapper -->
   <div style="position:relative; flex:1; display:flex; flex-direction:column; padding-top:64px; padding-bottom:140px;">
 
-    <!-- Loading overlay -->
-    <div class="loading-overlay" id="loading-overlay">
+    <!-- Tap-to-load splash -->
+    <div class="loading-overlay" id="tap-overlay">
+      <div style="font-size:56px;margin-bottom:8px;">📦</div>
+      <div class="loading-text" style="font-size:1.1rem;color:var(--text);">Tap to Load 3D Model</div>
+      <div class="loading-sub" style="margin-bottom:20px;">Large file – tap when ready (≈47 MB)</div>
+      <button class="btn-ar" id="tap-load-btn" style="padding:14px 32px;">
+        ▶ Load Model
+      </button>
+    </div>
+
+    <!-- Loading progress overlay -->
+    <div class="loading-overlay hidden" id="loading-overlay">
       <div class="loader-ring">
         <div class="loader-icon">📦</div>
       </div>
-      <div class="loading-text">Loading 3D Model…</div>
-      <div class="loading-sub">Please wait a moment</div>
+      <div class="loading-text">Downloading Model…</div>
+      <div class="loading-sub" id="progress-text">0%</div>
+      <div style="width:200px;height:4px;background:rgba(255,255,255,0.1);border-radius:4px;margin-top:4px;overflow:hidden;">
+        <div id="progress-bar" style="height:100%;width:0%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:4px;transition:width 0.3s ease;"></div>
+      </div>
     </div>
 
     <model-viewer
@@ -269,14 +282,15 @@
       ar-scale="auto"
       camera-controls
       auto-rotate
-      auto-rotate-delay="500"
-      rotation-per-second="30deg"
+      auto-rotate-delay="2000"
+      rotation-per-second="20deg"
       autoplay
-      shadow-intensity="1.2"
-      shadow-softness="0.8"
+      loading="lazy"
+      reveal="interaction"
+      shadow-intensity="0.6"
+      shadow-softness="1"
       environment-image="neutral"
       exposure="1"
-      tone-mapping="commerce"
       touch-action="pan-y"
       style="animation: fadeInUp 0.6s ease both;"
     >
@@ -313,20 +327,36 @@
 
 <script>
   const mv = document.getElementById('mv');
+  const tapOverlay = document.getElementById('tap-overlay');
   const loadingOverlay = document.getElementById('loading-overlay');
   const mainArBtn = document.getElementById('main-ar-btn');
   const noArNotice = document.getElementById('no-ar-notice');
+  const tapLoadBtn = document.getElementById('tap-load-btn');
+  const progressText = document.getElementById('progress-text');
+  const progressBar = document.getElementById('progress-bar');
 
-  // Hide loading overlay once model is ready
-  mv.addEventListener('load', () => {
-    loadingOverlay.classList.add('hidden');
+  // Tap-to-load: dismiss splash, show progress, trigger model load
+  function startLoading() {
+    tapOverlay.classList.add('hidden');
+    loadingOverlay.classList.remove('hidden');
+    // Trigger model-viewer to actually start fetching
+    mv.dismissPoster();
+  }
+  tapLoadBtn.addEventListener('click', startLoading);
+
+  // Show download progress
+  mv.addEventListener('progress', (e) => {
+    const pct = Math.round(e.detail.totalProgress * 100);
+    progressText.textContent = pct + '%';
+    progressBar.style.width = pct + '%';
+    if (pct >= 100) {
+      setTimeout(() => loadingOverlay.classList.add('hidden'), 400);
+    }
   });
 
-  // Also hide on progress complete
-  mv.addEventListener('progress', (e) => {
-    if (e.detail.totalProgress === 1) {
-      setTimeout(() => loadingOverlay.classList.add('hidden'), 300);
-    }
+  // Hide loading overlay once model is fully ready
+  mv.addEventListener('load', () => {
+    loadingOverlay.classList.add('hidden');
   });
 
   // Main AR button – activate AR session
@@ -347,9 +377,8 @@
   if (!isMobile) {
     noArNotice.style.display = 'block';
     mainArBtn.textContent = '🔄 Rotate & Explore 3D';
-    mainArBtn.onclick = () => {
-      mv.cameraOrbit = 'auto auto auto';
-    };
+    // On desktop, auto-start loading (no memory concern)
+    startLoading();
   }
 </script>
 </body>
